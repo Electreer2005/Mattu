@@ -17,7 +17,8 @@ async function bodyOf(request) { const text = await request.text(); if (text.len
 async function api(request, env) {
   const path = new URL(request.url).pathname, method = request.method, db = env.DB;
   if (!db) return json({ error: 'La base de datos aún no está conectada.' }, 503);
-  if (method !== 'GET' && request.headers.get('Origin') !== new URL(request.url).origin) return json({ error: 'Solicitud de otro origen rechazada.' }, 403);
+  const trustedOrigins = new Set([new URL(request.url).origin, 'https://mattu-chi.vercel.app']);
+  if (method !== 'GET' && !trustedOrigins.has(request.headers.get('Origin'))) return json({ error: 'Solicitud de otro origen rechazada.' }, 403);
   if (method === 'GET' && path === '/api/customer/session') return json({ user: await userFor(request, db) });
   let b = {};
   if (method === 'POST') { try { b = await bodyOf(request); } catch { return json({ error: 'Datos inválidos o demasiado grandes.' }, 400); } }
@@ -45,7 +46,7 @@ async function api(request, env) {
     if (path.endsWith('/logout')) { const token = readToken(request); if (token) await db.prepare('DELETE FROM customer_sessions WHERE token_hash=?').bind(await sha256(token)).run(); return json({ ok: true }, 200, { 'Set-Cookie': cookie('') }); }
     if (path.endsWith('/forgot')) {
       if (!validEmail(email)) return json({ error: 'Ingresá un correo válido.' }, 400);
-      if (!env.RESEND_API_KEY || !env.MAIL_FROM || env.PUBLIC_ORIGIN !== new URL(request.url).origin) return json({ error: 'La recuperación por correo todavía no está habilitada. Contactá a Mattu.' }, 503);
+      if (!env.RESEND_API_KEY || !env.MAIL_FROM || !trustedOrigins.has(env.PUBLIC_ORIGIN)) return json({ error: 'La recuperación por correo todavía no está habilitada. Contactá a Mattu.' }, 503);
       if (!await rate(db, 'reset-email:' + await sha256(email), 3, 900)) return json({ error: 'Esperá unos minutos antes de pedir otro correo.' }, 429);
       const u = await db.prepare('SELECT id FROM customer_users WHERE email=?').bind(email).first();
       if (u) {
