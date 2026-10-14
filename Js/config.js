@@ -36,5 +36,41 @@ window.MATTU_SERVICES = [
     "alt": "Dos dijes con iniciales y un diseño de corazón compartido",
     "description": "Iniciales, símbolos y diseños pensados para una pieza especial.",
     "detail": "Describí tu idea y si el diseño es para una pieza o un conjunto."
+  },
+  {
+    "id": "madera",
+    "name": "Grabado en madera",
+    "category": "Madera",
+    "image": "",
+    "alt": "",
+    "icon": "fa-tree",
+    "description": "Nombres, logos y diseños sobre piezas de madera.",
+    "detail": "Indicá el tipo de madera, la pieza, las medidas y el texto o diseño. Confirmamos la viabilidad antes de grabar.",
+    "piece": "Pieza de madera",
+    "material": "Madera"
+  },
+  {
+    "id": "cuero",
+    "name": "Grabado en cuero",
+    "category": "Cuero",
+    "image": "",
+    "alt": "",
+    "icon": "fa-tag",
+    "description": "Personalizá artículos de cuero con textos, iniciales o diseños.",
+    "detail": "Indicá el tipo de cuero, el artículo y las medidas del área a grabar. El trabajo se confirma después de evaluar el material.",
+    "piece": "Artículo de cuero",
+    "material": "Cuero"
+  },
+  {
+    "id": "virola",
+    "name": "Grabado en virola",
+    "category": "Virola",
+    "image": "",
+    "alt": "",
+    "icon": "fa-circle-notch",
+    "description": "Textos, iniciales y diseños personalizados en virolas de mates.",
+    "detail": "Indicá el material y las medidas de la virola, y si está montada en el mate. Describí el diseño y el espacio disponible.",
+    "piece": "Virola de mate",
+    "material": "Material de la virola a confirmar"
   }
 ];
