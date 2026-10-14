@@ -1,0 +1,15 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+require('../Js/cart-core.js');
+const { readCart, normalizeItem, addItem, quoteMessage } = globalThis.MATTU_CART_CORE;
+const ids = ['nombres', 'retratos'];
+const item = { id: 'one', serviceId: 'nombres', piece: 'Pulsera', material: 'Plata', design: 'María 12/10', qty: 2 };
+test('recupera un carrito persistido', () => assert.deepEqual(readCart(JSON.stringify([item]), ids), [item]));
+test('tolera almacenamiento corrupto', () => assert.deepEqual(readCart('{bad', ids), []));
+test('rechaza servicios ajenos al catálogo', () => assert.equal(normalizeItem({ ...item, serviceId: 'inventado' }, ids), null));
+test('rechaza cantidades negativas, fraccionarias y excesivas', () => { for (const qty of [-1, 0, 1.5, 10000]) assert.equal(normalizeItem({ ...item, qty }, ids), null); });
+test('no acepta grabados vacíos', () => assert.equal(normalizeItem({ ...item, design: '   ' }, ids), null));
+test('acumula cantidades del mismo diseño sin alterar el original', () => { const cart = [item]; const result = addItem(cart, { ...item, id: 'two', qty: 3 }); assert.equal(result.length, 1); assert.equal(result[0].qty, 5); assert.equal(cart[0].qty, 2); });
+test('conserva diseños diferentes como piezas independientes', () => assert.equal(addItem([item], { ...item, id: 'two', design: 'Otra idea' }).length, 2));
+test('impide superar el máximo al acumular piezas', () => assert.throws(() => addItem([{ ...item, qty: 9999 }], item)));
+test('prepara presupuesto con datos y cantidades sin inventar precios', () => { const message = quoteMessage([item], [{ id: 'nombres', name: 'Nombres y fechas' }], { name: 'Ana', phone: '12345', notes: 'Retirar el viernes' }); assert.match(message, /Ana/); assert.match(message, /2 unidad/); assert.match(message, /María 12\/10/); assert.match(message, /Retirar el viernes/); assert.doesNotMatch(message, /\$/); });
