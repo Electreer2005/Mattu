@@ -1,5 +1,26 @@
 {
   "framework": null,
   "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/api/customer/:path*",
+      "destination": "https://mattu-clientes.solismauricioezequiel.workers.dev/api/customer/:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/customer/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "x-vercel-enable-rewrite-caching",
+          "value": "0"
+        }
+      ]
+    }
+  ]
 }
