@@ -1,0 +1,358 @@
+/* ============================
+   6. HERO CON SLIDER
+   ============================ */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 8rem 5% 6rem;
+  position: relative;
+  overflow: hidden;
+  background: var(--negro-ebano);
+  margin-bottom: 20px;
+}
+
+/* Slider de fondo */
+.hero-slider {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transform: scale(1.08);
+  transition: opacity 1.5s ease, transform 6s ease;
+  will-change: opacity, transform;
+}
+
+.slide.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Overlay oscuro con degradado para que el texto se lea */
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(13, 13, 13, 0.75) 0%,
+      rgba(13, 13, 13, 0.55) 40%,
+      rgba(13, 13, 13, 0.85) 100%
+    ),
+    radial-gradient(
+      ellipse at center,
+      rgba(139, 90, 43, 0.15) 0%,
+      transparent 70%
+    );
+  pointer-events: none;
+}
+
+/* Contenido encima del slider */
+.Hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 900px;
+}
+
+.hero-eyebrow {
+  display: inline-block;
+  font-family: var(--font-cuerpo);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--marron-champagne);
+  margin-bottom: 1.5rem;
+  padding: 0.4rem 1.2rem;
+  border: 1px solid rgba(201, 166, 107, 0.4);
+  border-radius: 50px;
+  opacity: 0;
+  animation: fadeInUp 1s ease 0.2s forwards;
+}
+
+.hero-titulo {
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  color: var(--blanco-puro);
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  animation: fadeInUp 1s ease 0.4s forwards;
+}
+
+.hero-titulo span {
+  color: var(--marron-champagne);
+  font-style: italic;
+  position: relative;
+}
+
+/* Subrayado decorativo bajo "recuerdos" */
+.hero-titulo span::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--marron-champagne), transparent);
+}
+
+.hero-subtitulo {
+  font-size: clamp(1rem, 1.4vw, 1.15rem);
+  color: var(--blanco-perla);
+  max-width: 640px;
+  margin: 0 auto 2.5rem;
+  line-height: 1.7;
+  text-shadow: 0 2px 15px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  animation: fadeInUp 1s ease 0.7s forwards;
+}
+
+.hero-botones {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  opacity: 0;
+  animation: fadeInUp 1s ease 1s forwards;
+}
+
+/* Indicadores (dots) */
+.hero-dots {
+  position: absolute;
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  gap: 0.8rem;
+}
+
+.hero-dots .dot {
+  width: 32px;
+  height: 3px;
+  background: rgba(248, 246, 242, 0.3);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all var(--trans-media);
+  padding: 0;
+}
+
+.hero-dots .dot:hover {
+  background: rgba(201, 166, 107, 0.6);
+}
+
+.hero-dots .dot.active {
+  background: var(--marron-champagne);
+  width: 50px;
+  box-shadow: 0 0 12px rgba(201, 166, 107, 0.6);
+}
+
+/* ============================
+   ANIMACIÓN DE LAS PARTÍCULAS
+   (opcional, sobre el slider)
+   ============================ */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background-image:
+    radial-gradient(2px 2px at 10% 20%, rgba(201, 166, 107, 0.6), transparent),
+    radial-gradient(2px 2px at 25% 60%, rgba(201, 166, 107, 0.4), transparent),
+    radial-gradient(2px 2px at 45% 15%, rgba(201, 166, 107, 0.5), transparent),
+    radial-gradient(2px 2px at 65% 75%, rgba(201, 166, 107, 0.4), transparent),
+    radial-gradient(2px 2px at 85% 35%, rgba(201, 166, 107, 0.5), transparent),
+    radial-gradient(2px 2px at 75% 85%, rgba(201, 166, 107, 0.4), transparent),
+    radial-gradient(2px 2px at 15% 90%, rgba(201, 166, 107, 0.5), transparent),
+    radial-gradient(2px 2px at 55% 45%, rgba(201, 166, 107, 0.4), transparent);
+  animation: flotar 10s ease-in-out infinite;
+  opacity: 0.8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero {
+    padding: 6rem 5% 5rem;
+  }
+
+  .hero-botones {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hero-botones .btn {
+    width: 100%;
+    max-width: 280px;
+    justify-content: center;
+  }
+
+  .hero-dots {
+    bottom: 1.5rem;
+  }
+}
+
+/* ============================
+   SERVICIOS / PRODUCTOS
+   ============================ */
+.servicios {
+  padding: 6rem 5%;
+}
+
+.grid-servicios {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.tarjeta {
+  border: 2px solid var(--marron-cafe);
+  padding: 20px 25px;
+  border-radius: 20px;
+  background: var(--blanco-puro);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  transition: all var(--trans-media);
+  box-shadow: var(--sombra-suave);
+  opacity: 0;
+  animation: fadeInUp 0.8s ease forwards;
+}
+
+/* Aparición escalonada */
+.tarjeta:nth-child(1) { animation-delay: 0.1s; }
+.tarjeta:nth-child(2) { animation-delay: 0.25s; }
+.tarjeta:nth-child(3) { animation-delay: 0.4s; }
+.tarjeta:nth-child(4) { animation-delay: 0.55s; }
+.tarjeta:nth-child(5) { animation-delay: 0.7s; }
+.tarjeta:nth-child(6) { animation-delay: 0.85s; }
+
+.tarjeta:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: var(--sombra-marron);
+}
+
+.tarjeta-imagen {
+  width: 100%;
+  height: 220px;
+  border: 2px solid var(--dorado-suave);
+  object-fit: cover;
+  transition: transform var(--trans-lenta);
+}
+
+.tarjeta:hover .tarjeta-imagen {
+  transform: scale(1.08);
+}
+
+.tarjeta-contenido {
+  padding: 1.8rem;
+}
+
+.tarjeta-titulo {
+  font-size: 1.3rem;
+  color: var(--marron-cafe);
+  margin-bottom: 0.8rem;
+}
+
+.tarjeta-texto {
+  font-size: 0.95rem;
+  color: #555;
+  line-height: 1.7;
+}
+
+/* Borde animado en hover */
+.tarjeta::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--marron-cobre), var(--marron-champagne));
+  transition: width var(--trans-media);
+  z-index: 2;
+}
+
+.tarjeta:hover::before {
+  width: 100%;
+}
+
+/* ============================
+   GALERÍA
+   ============================ */
+.galeria {
+  padding: 6rem 5%;
+}
+
+.grid-galeria {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+.galeria-item {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.galeria-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--trans-lenta);
+  filter: grayscale(20%) brightness(0.9);
+}
+
+.galeria-item:hover img {
+  transform: scale(1.1);
+  filter: grayscale(0%) brightness(1);
+}
+
+/* Overlay con shimmer al hover */
+.galeria-item::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 30%,
+    rgba(201, 166, 107, 0.25) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  opacity: 0;
+  transition: opacity var(--trans-media);
+  pointer-events: none;
+}
+
+.galeria-item:hover::after {
+  opacity: 1;
+  animation: shimmer 1.5s linear;
+}
+
+/* ============================
+   FORMULARIO
+   ============================ */
+.contacto {
+  padding: 6rem 5%;
+}

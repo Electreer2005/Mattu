@@ -1,0 +1,397 @@
+/* ============================
+   VARIABLES GLOBALES
+   ============================ */
+:root {
+  /* Paleta principal */
+  --negro-ebano: #0D0D0D;
+  --marron-cobre: #8B5A2B;
+  --marron-cafe: #5C3A21;
+  --marron-champagne: #C9A66B;
+  --blanco-perla: #F8F6F2;
+  --blanco-puro: #FFFFFF;
+
+  /* Apoyo */
+  --gris-grafito: #2A2A2A;
+  --dorado-suave: #D4AF37;
+
+  /* Tipografía */
+  --font-titulo: 'Playfair Display', serif;
+  --font-cuerpo: 'Montserrat', sans-serif;
+
+  /* Transiciones */
+  --trans-rapida: 0.25s ease;
+  --trans-media: 0.4s ease;
+  --trans-lenta: 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  /* Sombras */
+  --sombra-marron: 0 10px 30px rgba(139, 90, 43, 0.3);
+  --sombra-suave: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+/* Reset base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  list-style: none;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-cuerpo);
+  color: var(--blanco-perla);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-titulo);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+  transition: color var(--trans-rapida);
+}
+
+/* ============================
+   HEADER
+   ============================ */
+.header {
+  width: 100%;
+  padding: 1.2rem 5%;
+  background: rgba(13, 13, 13, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+  border-bottom: 1px solid rgba(201, 166, 107, 0.15);
+  transition: padding var(--trans-media);
+}
+
+.header.scrolled {
+  padding: 0.7rem 5%;
+  background: rgba(13, 13, 13, 0.98);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.logo {
+  font-family: var(--font-titulo);
+  font-size: 1.6rem;
+  color: var(--blanco-puro);
+  letter-spacing: 3px;
+  position: relative;
+}
+
+/* Efecto grabado en el logo al hover */
+.logo::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--marron-champagne), var(--dorado-suave));
+  transition: width var(--trans-lenta);
+}
+
+.logo:hover::after {
+  width: 100%;
+  animation: grabado 1s ease forwards;
+}
+
+.logo img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 2px solid var(--dorado-suave);
+}
+
+.Bars-button {
+  display: none;
+  background: transparent;
+  color: var(--blanco-puro);
+  border: none;
+  cursor: pointer;
+}
+
+nav ul {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+}
+
+.nav-menu {
+  display: flex;
+  gap: 2.5rem;
+  list-style: none;
+}
+
+.nav-menu a {
+  color: var(--blanco-perla);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  position: relative;
+  padding: 5px 0;
+}
+
+.nav-menu a::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 1px;
+  background: var(--marron-champagne);
+  transition: all var(--trans-media);
+  transform: translateX(-50%);
+}
+
+.nav-menu a:hover::before {
+  width: 100%;
+}
+
+.nav-menu a:hover {
+  color: var(--marron-champagne);
+}
+
+.buttons-header {
+  display: flex;
+  gap: 20px;
+}
+
+/* Contenedor */
+
+.Container {
+  max-width: 1220px;
+  margin: 0 auto;
+}
+
+main section{
+  background: var(--marron-champagne);
+  margin-top: 20px;
+  color: var(--negro-ebano);
+  border-radius: 10px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.305);
+}
+
+
+.Title-section {
+  text-align: center;
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: var(--marron-cafe);
+  margin-bottom: 3rem;
+  position: relative;
+  display: inline-block;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.Title-section::after {
+  content: '';
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 2px;
+  background: var(--marron-champagne);
+}
+
+/* ============================
+   BOTONES
+   ============================ */
+.btn {
+  display: inline-block;
+  padding: 0.9rem 2.2rem;
+  font-family: var(--font-cuerpo);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--trans-media);
+}
+
+/* Botón principal con efecto shimmer */
+.btn-primario {
+  background: linear-gradient(90deg,
+      var(--marron-cobre) 0%,
+      var(--marron-champagne) 50%,
+      var(--marron-cobre) 100%);
+  background-size: 200% auto;
+  color: var(--blanco-puro);
+  animation: shimmer 4s linear infinite;
+}
+
+.btn-primario:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sombra-marron);
+  background-position: right center;
+}
+
+/* Botón secundario outline */
+.btn-secundario {
+  background: transparent;
+  color: var(--marron-champagne);
+  border: 1px solid var(--marron-champagne);
+}
+
+.btn-secundario:hover {
+  background: var(--marron-champagne);
+  color: var(--negro-ebano);
+  transform: translateY(-2px);
+}
+
+/* Botón con pulso (para CTA principal) */
+.btn-pulso {
+  animation: pulso 2.5s infinite;
+}
+
+/* ============================
+   FOOTER
+   ============================ */
+.footer {
+  background: var(--negro-ebano);
+  padding: 3rem 5% 1.5rem;
+  text-align: center;
+  border-top: 1px solid rgba(201, 166, 107, 0.15);
+  margin-top: 20px;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.footer-logo {
+  font-family: var(--font-titulo);
+  font-size: 1.8rem;
+  color: var(--marron-champagne);
+  letter-spacing: 4px;
+  margin-bottom: 1rem;
+}
+
+.footer-redes {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.footer-redes a {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(201, 166, 107, 0.3);
+  border-radius: 50%;
+  color: var(--marron-champagne);
+  transition: all var(--trans-media);
+}
+
+.footer-redes a:hover {
+  background: var(--marron-champagne);
+  color: var(--negro-ebano);
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(201, 166, 107, 0.3);
+}
+
+.footer-copy {
+  font-size: 0.85rem;
+  color: rgba(248, 246, 242, 0.5);
+  margin-top: 1.5rem;
+}
+
+/* ============================
+   KEYFRAMES
+   ============================ */
+
+/* Fade-in escalonado */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Brillo metálico (shimmer) */
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* Grabado: línea que se dibuja */
+@keyframes grabado {
+  from {
+    width: 0;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+
+/* Partículas doradas flotando */
+@keyframes flotar {
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.3;
+  }
+
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+    opacity: 0.6;
+  }
+}
+
+/* Pulso dorado sutil */
+@keyframes pulso {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(201, 166, 107, 0.5);
+  }
+
+  50% {
+    box-shadow: 0 0 0 12px rgba(201, 166, 107, 0);
+  }
+}
