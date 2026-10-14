@@ -1,6 +1,6 @@
 import { randomToken, sha256, passwordHash, constantEqual, emailOf, validEmail, validPassword, cookie, readToken } from './security.mjs';
 const now = () => Math.floor(Date.now() / 1000);
-const names = { nombres: 'Nombres y fechas', miradas: 'Miradas y detalles', retratos: 'Retratos en metal', simbolos: 'Símbolos y diseños' };
+const names = { nombres: 'Nombres y fechas', miradas: 'Miradas y detalles', retratos: 'Retratos en metal', simbolos: 'Símbolos y diseños', madera: 'Grabado en madera', cuero: 'Grabado en cuero', virola: 'Grabado en virola' };
 const str = (v, max) => typeof v === 'string' ? v.trim().slice(0, max) : '';
 function json(data, status = 200, headers = {}) { return Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers } }); }
 async function rate(db, bucket, limit, seconds) {
