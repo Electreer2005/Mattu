@@ -1,5 +1,5 @@
-// Número WhatsApp en formato internacional, solo dígitos. Completar con el número real del negocio.
-window.MATTU_CONFIG = { whatsapp: "", instagram: "https://www.instagram.com/mattu.ar/", teamPortal: "https://mattu-pedidos.solismauricioezequiel.workers.dev/" };
+// Número WhatsApp en formato internacional, solo dígitos. Contacto del negocio: +54 9 3573 40-2239.
+window.MATTU_CONFIG = { whatsapp: "5493573402239", instagram: "https://www.instagram.com/mattu.ar/", teamPortal: "https://mattu-pedidos.solismauricioezequiel.workers.dev/" };
 window.MATTU_SERVICES = [
   {
     "id": "nombres",
