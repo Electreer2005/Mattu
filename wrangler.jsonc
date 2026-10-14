@@ -1,0 +1,9 @@
+{
+ "name":"mattu-clientes",
+ "main":"worker/index.mjs",
+ "compatibility_date":"2026-10-14",
+ "assets":{"directory":"./dist","binding":"ASSETS","run_worker_first":["/api/customer/*"]},
+ "d1_databases":[{"binding":"DB","database_name":"mattu-pedidos-db","database_id":"5a71ec03-c19c-483b-9940-3ee00db38b98","migrations_dir":"migrations"}],
+ "keep_vars":true,
+ "triggers":{"crons":["0 4 * * *"]}
+}
