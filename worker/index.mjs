@@ -247,7 +247,7 @@ async function api(request, env) {
     const address = str(b.address, 180);
     const bio = str(b.bio, 500);
     if (!name) return json({ error: 'El nombre es obligatorio.' }, 400);
-    if (phone && !/^[\\d\\s+()\\-]{6,40}$/.test(phone)) return json({ error: 'El teléfono no es válido.' }, 400);
+    if (phone && !/^[\d\s+()-]{6,40}$/.test(phone)) return json({ error: 'El teléfono no es válido.' }, 400);
     await db.prepare('UPDATE customer_users SET name=?,phone=?,address=?,bio=? WHERE id=?').bind(name, phone, address, bio, user.id).run();
     return json({ user: { ...user, name, phone, address, bio } });
   }
