@@ -17,7 +17,7 @@ async function rate(db, bucket, limit, seconds) {
 async function userFor(request, db) {
   const token = readToken(request);
   if (!token) return null;
-  return db.prepare('SELECT u.id,u.email,u.name FROM customer_users u JOIN customer_sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>? AND u.verified_at IS NOT NULL').bind(await sha256(token), now()).first();
+  return db.prepare('SELECT u.id,u.email,u.name,u.phone,u.address,u.bio FROM customer_users u JOIN customer_sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>? AND u.verified_at IS NOT NULL').bind(await sha256(token), now()).first();
 }
 
 async function newSession(db, userId) {
@@ -237,6 +237,19 @@ async function api(request, env) {
       if (!result[0].meta.changes) return json({ error: 'El enlace ya fue utilizado.' }, 400);
       return json({ message: 'Contraseña actualizada. Iniciá sesión con la nueva contraseña.' }, 200, { 'Set-Cookie': cookie('') });
     }
+  }
+
+  if (path === '/api/customer/profile' && method === 'POST') {
+    const user = await userFor(request, db);
+    if (!user) return json({ error: 'Iniciá sesión para editar tu perfil.' }, 401);
+    const name = str(b.name, 120);
+    const phone = str(b.phone, 40);
+    const address = str(b.address, 180);
+    const bio = str(b.bio, 500);
+    if (!name) return json({ error: 'El nombre es obligatorio.' }, 400);
+    if (phone && !/^[\\d\\s+()\\-]{6,40}$/.test(phone)) return json({ error: 'El teléfono no es válido.' }, 400);
+    await db.prepare('UPDATE customer_users SET name=?,phone=?,address=?,bio=? WHERE id=?').bind(name, phone, address, bio, user.id).run();
+    return json({ user: { ...user, name, phone, address, bio } });
   }
 
   if (path === '/api/customer/orders') {
