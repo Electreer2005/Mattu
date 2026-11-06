@@ -138,6 +138,35 @@ async function api(request, env) {
       return json({ message: 'Te enviamos un correo para verificar tu cuenta. Revisá también la carpeta de spam.' }, 202);
     }
 
+    if (path.endsWith('/resend-verification')) {
+      if (!validEmail(email)) return json({ error: 'Ingresá un correo válido.' }, 400);
+      if (!mailConfigured(env, trustedOrigins)) return json({ error: 'El envío de correos todavía no está habilitado.' }, 503);
+      if (!await rate(db, 'verify-email:' + await sha256(email), 3, 900)) {
+        return json({ error: 'Esperá unos minutos antes de pedir otro correo.' }, 429);
+      }
+      const pending = await db.prepare('SELECT id,name FROM customer_users WHERE email=? AND verified_at IS NULL').bind(email).first();
+      if (pending) {
+        const token = randomToken();
+        const tokenHash = await sha256(token);
+        await db.batch([
+          db.prepare('DELETE FROM customer_email_verification_tokens WHERE user_id=?').bind(pending.id),
+          db.prepare('INSERT INTO customer_email_verification_tokens(token_hash,user_id,expires_at) VALUES(?,?,?)').bind(tokenHash, pending.id, now() + 86400)
+        ]);
+        const verifyUrl = env.PUBLIC_ORIGIN + '/verify-email?token=' + token;
+        const sent = await sendEmail(env, {
+          to: email,
+          subject: 'Verificá tu correo para activar tu cuenta Mattu',
+          text: 'Hola ' + pending.name + '. Para activar tu cuenta de Mattu, abrí este enlace dentro de las próximas 24 horas: ' + verifyUrl + '.',
+          html: '<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#29231f"><h1 style="color:#72533d">Activá tu cuenta Mattu</h1><p>Hola ' + escapeHtml(pending.name) + '.</p><p><a href="' + verifyUrl + '" style="display:inline-block;padding:13px 20px;background:#72533d;color:#fff;text-decoration:none;border-radius:8px">Verificar mi correo</a></p><p>El enlace vence en 24 horas.</p></div>'
+        });
+        if (!sent) {
+          await db.prepare('DELETE FROM customer_email_verification_tokens WHERE token_hash=?').bind(tokenHash).run();
+          return json({ error: 'No se pudo enviar el correo. Probá más tarde.' }, 503);
+        }
+      }
+      return json({ message: 'Si la cuenta necesita verificación, te enviaremos un nuevo enlace.' });
+    }
+
     if (path.endsWith('/verify')) {
       if (!/^[a-f0-9]{64}$/.test(b.token || '')) {
         return json({ error: 'El enlace de verificación no es válido.' }, 400);
