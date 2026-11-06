@@ -281,11 +281,14 @@ async function api(request, env) {
 
       const items = [];
       for (const item of b.items) {
-        if (!names[item.serviceId] || !Number.isInteger(item.qty) || item.qty < 1 || item.qty > 9999 || !str(item.design, 1500) || !str(item.piece, 80)) {
+        const label = names[item.serviceId] || str(item.productName || item.name, 120);
+        const piece = str(item.piece || item.productName || item.name, 80);
+        const design = str(item.design || item.customization || item.description, 1500);
+        if (!label || !Number.isInteger(item.qty) || item.qty < 1 || item.qty > 9999 || !design || !piece) {
           return json({ error: 'Una de las piezas tiene datos inválidos.' }, 400);
         }
         items.push({
-          description: names[item.serviceId] + ' · ' + str(item.piece, 80) + ' · ' + (str(item.material, 80) || 'Material a confirmar') + '\n' + str(item.design, 1500),
+          description: label + ' · ' + piece + ' · ' + (str(item.material, 80) || 'Material a confirmar') + '\n' + design,
           qty: item.qty,
           price: 0
         });
