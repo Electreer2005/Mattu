@@ -63,7 +63,9 @@ async function api(request, env) {
   const trustedOrigins = new Set([
     new URL(request.url).origin,
     'https://mattu-chi.vercel.app',
-    'https://mattu-app.vercel.app'
+    'https://mattu-app.vercel.app',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
   ]);
   if (method !== 'GET' && !trustedOrigins.has(request.headers.get('Origin'))) {
     return json({ error: 'Solicitud de otro origen rechazada.' }, 403);
