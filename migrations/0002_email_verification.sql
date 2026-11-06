@@ -11,3 +11,4 @@ CREATE INDEX IF NOT EXISTS customer_email_verification_user
 ALTER TABLE customer_users ADD COLUMN phone TEXT NOT NULL DEFAULT '';
 ALTER TABLE customer_users ADD COLUMN address TEXT NOT NULL DEFAULT '';
 ALTER TABLE customer_users ADD COLUMN bio TEXT NOT NULL DEFAULT '';
+ALTER TABLE customer_users ADD COLUMN avatar TEXT NOT NULL DEFAULT '';
