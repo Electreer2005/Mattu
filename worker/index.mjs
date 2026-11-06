@@ -243,7 +243,7 @@ async function api(request, env) {
     const user = await userFor(request, db);
     if (!user) return json({ error: 'Iniciá sesión para cambiar tu foto.' }, 401);
     const avatar = typeof b.avatar === 'string' ? b.avatar : '';
-    if (avatar.length > 80000 || !/^data:image\\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(avatar)) {
+    if (avatar.length > 80000 || !avatar.startsWith('data:image/jpeg;base64,') || !/^[A-Za-z0-9+/=]+$/.test(avatar.slice(23))) {
       return json({ error: 'La foto debe ser JPEG y tener un tamaño reducido.' }, 400);
     }
     await db.prepare('UPDATE customer_users SET avatar=? WHERE id=?').bind(avatar, user.id).run();
