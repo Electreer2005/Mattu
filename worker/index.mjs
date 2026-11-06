@@ -17,7 +17,7 @@ async function rate(db, bucket, limit, seconds) {
 async function userFor(request, db) {
   const token = readToken(request);
   if (!token) return null;
-  return db.prepare('SELECT u.id,u.email,u.name,u.phone,u.address,u.bio FROM customer_users u JOIN customer_sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>? AND u.verified_at IS NOT NULL').bind(await sha256(token), now()).first();
+  return db.prepare('SELECT u.id,u.email,u.name,u.phone,u.address,u.bio,u.avatar FROM customer_users u JOIN customer_sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>? AND u.verified_at IS NOT NULL').bind(await sha256(token), now()).first();
 }
 
 async function newSession(db, userId) {
@@ -28,7 +28,7 @@ async function newSession(db, userId) {
 
 async function bodyOf(request) {
   const text = await request.text();
-  if (text.length > 50000) throw Error('body-size');
+  if (text.length > 100000) throw Error('body-size');
   return JSON.parse(text);
 }
 
@@ -237,6 +237,24 @@ async function api(request, env) {
       if (!result[0].meta.changes) return json({ error: 'El enlace ya fue utilizado.' }, 400);
       return json({ message: 'Contraseña actualizada. Iniciá sesión con la nueva contraseña.' }, 200, { 'Set-Cookie': cookie('') });
     }
+  }
+
+  if (path === '/api/customer/profile/avatar' && method === 'POST') {
+    const user = await userFor(request, db);
+    if (!user) return json({ error: 'Iniciá sesión para cambiar tu foto.' }, 401);
+    const avatar = typeof b.avatar === 'string' ? b.avatar : '';
+    if (avatar.length > 80000 || !/^data:image\\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(avatar)) {
+      return json({ error: 'La foto debe ser JPEG y tener un tamaño reducido.' }, 400);
+    }
+    await db.prepare('UPDATE customer_users SET avatar=? WHERE id=?').bind(avatar, user.id).run();
+    return json({ user: { ...user, avatar } });
+  }
+
+  if (path === '/api/customer/profile/avatar/remove' && method === 'POST') {
+    const user = await userFor(request, db);
+    if (!user) return json({ error: 'Iniciá sesión para cambiar tu foto.' }, 401);
+    await db.prepare("UPDATE customer_users SET avatar='' WHERE id=?").bind(user.id).run();
+    return json({ user: { ...user, avatar: '' } });
   }
 
   if (path === '/api/customer/profile' && method === 'POST') {
