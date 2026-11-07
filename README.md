@@ -8,7 +8,7 @@ HTML, CSS y JavaScript con API en Cloudflare Workers y D1. La web pública conse
 - Solicitudes autenticadas registradas en la tabla orders que ya usa el equipo.
 - El equipo recibe solicitudes con estado Recibido, nota PENDIENTE DE REVISIÓN y precios en cero para cotizar. Los clientes no pueden establecer precio, seña ni estado.
 - Cada solicitud nueva queda vinculada al ID del cliente en customer_order_links. No se vinculan automáticamente órdenes antiguas solo porque coincida el correo.
-- Registro público no verifica el correo inicialmente. Recuperación requiere acceso a ese correo. No hay carga de fotos ni pagos online.
+- Registro con verificación obligatoria por correo; inicio y cierre de sesión con cookie segura; recuperación de contraseña mediante enlace de un solo uso. Se envían correos de bienvenida, verificación y confirmación de solicitudes. No hay pagos online.
 
 ## Activación desde el navegador
 
@@ -31,13 +31,13 @@ La web y su API deben estar en el mismo origen. GitHub Pages o un hosting estát
 No poner Cloudflare Access delante de este Worker público: el cliente se registra con la propia autenticación. Mantener Access en mattu-pedidos para los empleados. El portal interno existente no cambia.
 
 ### 3. Correos de recuperación
-La recuperación requiere un proveedor de email. El código utiliza Resend, con un remitente verificado. Agregar en el Worker público → Settings → Variables and Secrets:
+La recuperación requiere un proveedor de email. El código utiliza Resend, con un remitente verificado. El registro no crea una sesión hasta que la persona confirma su correo. Agregar en el Worker público → Settings → Variables and Secrets:
 
 - `RESEND_API_KEY`: **Secret**, clave de la cuenta Resend.
 - `MAIL_FROM`: remitente verificado, por ejemplo `Mattu <cuentas@DOMINIO_VERIFICADO>`; reemplazar por el remitente real.
-- `PUBLIC_ORIGIN`: origen exacto de la web pública (https, sin barra final), para los enlaces de recuperación.
+- `PUBLIC_ORIGIN`: `https://mattu-app.vercel.app` (origen exacto de la nueva web, sin barra final), para los enlaces de verificación y recuperación.
 
-Sin estos valores, registro e inicio de sesión pueden funcionar, pero recuperación responde que aún no está habilitada. No simula envío. Nunca guardar la clave de email en GitHub ni en Js/config.js.
+Sin estos valores, el registro y la recuperación quedan deshabilitados; no se simula el envío. La migración `migrations/0002_email_verification.sql` agrega verificación y campos de perfil; debe ejecutarse una sola vez en la base D1 existente después de la migración inicial. Nunca guardar la clave de email en GitHub ni en Js/config.js.
 
 ### 4. Datos del negocio
 `Js/config.js` configura el WhatsApp real, Instagram, portal del equipo y catálogo.
@@ -47,7 +47,7 @@ Contraseñas con PBKDF2-SHA256 y sal aleatoria. Sesiones aleatorias, almacenadas
 
 Los tokens de recuperación duran 30 minutos, se consumen una vez y revocan las sesiones. Los clientes no reciben notas internas ni correos de los empleados. La consulta de pedidos une orders con customer_order_links filtrando por usuario, nunca por un ID de usuario enviado por el navegador.
 
-El carrito es local; las solicitudes se envían al servidor cuando el cliente pulsa Enviar solicitud desde mi cuenta. Se conserva un ID de reintento para evitar duplicados si se pierde la respuesta. La presentación por WhatsApp sigue disponible sin registro.
+El carrito de la tienda sigue siendo local hasta que se envía; las solicitudes se guardan en la tabla `orders` existente cuando el cliente pulsa Enviar solicitud desde su cuenta verificada. Se conserva un ID de reintento para evitar duplicados si se pierde la respuesta. La presentación por WhatsApp sigue disponible sin registro.
 
 ## Pruebas
 `npm test` ejecuta 17 pruebas de carrito, registro, contraseñas, logout, rechazo de otro origen, aislamiento de usuarios, creación idempotente, cambios del equipo y recuperación. Se utiliza SQLite real en memoria y un proveedor de email simulado únicamente dentro de las pruebas.
