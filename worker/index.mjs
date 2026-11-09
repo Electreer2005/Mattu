@@ -361,7 +361,7 @@ async function api(request, env) {
         origin: 'web',
         webType: (() => {
           const hasService = b.items.some((item) => Boolean(names[item.serviceId]));
-          const hasProduct = b.items.some((item) => Boolean(item.productId || item.productName));
+          const hasProduct = b.items.some((item) => Boolean(item.productId));
           return hasService && hasProduct ? 'mixed' : hasProduct ? 'product' : 'service';
         })()
       };
