@@ -311,7 +311,7 @@ async function api(request, env) {
       return json({ orders: visible.map((r) => {
         const order = JSON.parse(r.data);
         return {
-          id: order.id, number: order.number, status: order.status, type: order.type,
+          id: order.id, number: order.number, status: order.status, type: order.type, webType: order.webType,
           createdAt: order.createdAt, updatedAt: r.updated_at, due: order.due,
           delivery: order.delivery,
           items: order.items.map((item) => ({ description: item.description, qty: item.qty, price: item.price })),
