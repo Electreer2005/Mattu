@@ -307,7 +307,8 @@ async function api(request, env) {
 
     if (method === 'GET') {
       const result = await db.prepare('SELECT o.data,o.updated_at FROM orders o JOIN customer_order_links l ON l.order_id=o.id WHERE l.user_id=? ORDER BY o.updated_at DESC LIMIT 200').bind(user.id).all();
-      return json({ orders: result.results.map((r) => {
+      const visible = result.results.filter((r) => !JSON.parse(r.data).deletedAt);
+      return json({ orders: visible.map((r) => {
         const order = JSON.parse(r.data);
         return {
           id: order.id, number: order.number, status: order.status, type: order.type,
@@ -356,7 +357,13 @@ async function api(request, env) {
         items, deposit: 0, status: 'Recibido', createdAt: stamp, updatedAt: stamp,
         updatedBy: 'Cliente',
         history: [{ date: stamp, text: 'Solicitud de cliente pendiente de revisión', actor: 'Cliente' }],
-        pending: false
+        pending: false,
+        origin: 'web',
+        webType: (() => {
+          const hasService = b.items.some((item) => Boolean(names[item.serviceId]));
+          const hasProduct = b.items.some((item) => Boolean(item.productId || item.productName));
+          return hasService && hasProduct ? 'mixed' : hasProduct ? 'product' : 'service';
+        })()
       };
 
       try {
