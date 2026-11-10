@@ -1,6 +1,7 @@
 import { randomToken, sha256, passwordHash, constantEqual, emailOf, validEmail, validPassword, cookie, readToken } from './security.mjs';
 
 const now = () => Math.floor(Date.now() / 1000);
+const ADMIN_EMAILS = new Set(['solismauricioezequiel@gmail.com','lautialfgod@gmail.com','diegoescobartarea@gmail.com','augustodizaratea@gmail.com']);
 const names = { nombres: 'Nombres y fechas', miradas: 'Miradas y detalles', retratos: 'Retratos en metal', simbolos: 'Símbolos y diseños', madera: 'Grabado en madera', cuero: 'Grabado en cuero', virola: 'Grabado en virola' };
 const str = (v, max) => typeof v === 'string' ? v.trim().slice(0, max) : '';
 
@@ -17,7 +18,7 @@ async function rate(db, bucket, limit, seconds) {
 async function userFor(request, db) {
   const token = readToken(request);
   if (!token) return null;
-  return db.prepare('SELECT u.id,u.email,u.name,u.phone,u.address,u.bio,u.avatar FROM customer_users u JOIN customer_sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>? AND u.verified_at IS NOT NULL').bind(await sha256(token), now()).first();
+  return db.prepare('SELECT u.id,u.email,u.name,u.phone,u.address,u.bio,u.avatar,u.role FROM customer_users u JOIN customer_sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>? AND u.verified_at IS NOT NULL').bind(await sha256(token), now()).first();
 }
 
 async function newSession(db, userId) {
@@ -73,6 +74,14 @@ async function api(request, env) {
 
   if (method === 'GET' && path === '/api/customer/session') {
     return json({ user: await userFor(request, db) });
+  }
+
+  if (path === '/api/customer/admin/users' && method === 'GET') {
+    const admin = await userFor(request, db);
+    if (!admin) return json({ error: 'Iniciá sesión.' }, 401);
+    if (admin.role !== 'admin') return json({ error: 'No tenés permisos de administrador.' }, 403);
+    const result = await db.prepare('SELECT id,email,name,role,created_at,verified_at FROM customer_users ORDER BY created_at DESC LIMIT 200').all();
+    return json({ users: result.results });
   }
 
   let b = {};
@@ -210,7 +219,9 @@ async function api(request, env) {
       if (!user.verified_at) {
         return json({ error: 'Antes de iniciar sesión, verificá tu correo desde el enlace que te enviamos.' }, 403);
       }
-      return json({ user: { id: user.id, name: user.name, email: user.email } }, 200, {
+      const role = ADMIN_EMAILS.has(user.email) ? 'admin' : (user.role || 'customer');
+      await db.prepare('UPDATE customer_users SET role=? WHERE id=?').bind(role, user.id).run();
+      return json({ user: { id: user.id, name: user.name, email: user.email, role } }, 200, {
         'Set-Cookie': cookie(await newSession(db, user.id))
       });
     }
