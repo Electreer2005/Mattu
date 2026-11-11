@@ -1,7 +1,7 @@
 import { randomToken, sha256, passwordHash, constantEqual, emailOf, validEmail, validPassword, cookie, readToken } from './security.mjs';
 
 const now = () => Math.floor(Date.now() / 1000);
-const ADMIN_EMAILS = new Set(['solismauricioezequiel@gmail.com','lautialfgod@gmail.com','diegoescobartarea@gmail.com','augustodizaratea@gmail.com']);
+const OWNER_EMAIL = 'solismauricioezequiel@gmail.com';
 const names = { nombres: 'Nombres y fechas', miradas: 'Miradas y detalles', retratos: 'Retratos en metal', simbolos: 'Símbolos y diseños', madera: 'Grabado en madera', cuero: 'Grabado en cuero', virola: 'Grabado en virola' };
 const str = (v, max) => typeof v === 'string' ? v.trim().slice(0, max) : '';
 
@@ -18,7 +18,10 @@ async function rate(db, bucket, limit, seconds) {
 async function userFor(request, db) {
   const token = readToken(request);
   if (!token) return null;
-  return db.prepare('SELECT u.id,u.email,u.name,u.phone,u.address,u.bio,u.avatar,u.role FROM customer_users u JOIN customer_sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>? AND u.verified_at IS NOT NULL').bind(await sha256(token), now()).first();
+  const user = await db.prepare('SELECT u.id,u.email,u.name,u.phone,u.address,u.bio,u.avatar,u.role FROM customer_users u JOIN customer_sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>? AND u.verified_at IS NOT NULL').bind(await sha256(token), now()).first();
+  if (!user) return null;
+  const isOwner = emailOf(user.email) === OWNER_EMAIL;
+  return { ...user, role: isOwner ? 'admin' : (user.role || 'customer'), is_owner: isOwner };
 }
 
 async function newSession(db, userId) {
@@ -81,13 +84,31 @@ async function api(request, env) {
     if (!admin) return json({ error: 'Iniciá sesión.' }, 401);
     if (admin.role !== 'admin') return json({ error: 'No tenés permisos de administrador.' }, 403);
     const result = await db.prepare('SELECT id,email,name,role,created_at,verified_at FROM customer_users ORDER BY created_at DESC LIMIT 200').all();
-    return json({ users: result.results });
+    return json({ users: result.results.map((user) => ({ ...user, role: emailOf(user.email) === OWNER_EMAIL ? 'admin' : (user.role || 'customer'), is_owner: emailOf(user.email) === OWNER_EMAIL })), isOwner: admin.is_owner });
   }
 
   let b = {};
   if (method === 'POST') {
     try { b = await bodyOf(request); }
     catch { return json({ error: 'Datos inválidos o demasiado grandes.' }, 400); }
+  }
+
+  if (path === '/api/customer/admin/role' && method === 'POST') {
+    const actor = await userFor(request, db);
+    if (!actor) return json({ error: 'Iniciá sesión.' }, 401);
+    if (!actor.is_owner) return json({ error: 'Solo el administrador principal puede modificar roles.' }, 403);
+    const userId = str(b.userId, 80);
+    const role = b.role;
+    if (!userId || !['admin', 'customer'].includes(role)) return json({ error: 'Usuario o rol inválido.' }, 400);
+    const target = await db.prepare('SELECT id,email,verified_at FROM customer_users WHERE id=?').bind(userId).first();
+    if (!target) return json({ error: 'No se encontró el usuario.' }, 404);
+    if (emailOf(target.email) === OWNER_EMAIL) return json({ error: 'El administrador principal no puede ser modificado.' }, 403);
+    if (!target.verified_at) return json({ error: 'El usuario debe verificar su correo antes de recibir permisos.' }, 409);
+    await db.batch([
+      db.prepare('UPDATE customer_users SET role=? WHERE id=?').bind(role, userId),
+      db.prepare('DELETE FROM customer_sessions WHERE user_id=?').bind(userId)
+    ]);
+    return json({ ok: true, userId, role, message: 'Rol actualizado. El usuario deberá iniciar sesión nuevamente.' });
   }
 
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
@@ -219,9 +240,10 @@ async function api(request, env) {
       if (!user.verified_at) {
         return json({ error: 'Antes de iniciar sesión, verificá tu correo desde el enlace que te enviamos.' }, 403);
       }
-      const role = ADMIN_EMAILS.has(user.email) ? 'admin' : (user.role || 'customer');
-      await db.prepare('UPDATE customer_users SET role=? WHERE id=?').bind(role, user.id).run();
-      return json({ user: { id: user.id, name: user.name, email: user.email, role } }, 200, {
+      const isOwner = emailOf(user.email) === OWNER_EMAIL;
+      const role = isOwner ? 'admin' : (user.role || 'customer');
+      if (isOwner && user.role !== 'admin') await db.prepare('UPDATE customer_users SET role=? WHERE id=?').bind('admin', user.id).run();
+      return json({ user: { id: user.id, name: user.name, email: user.email, role, is_owner: isOwner } }, 200, {
         'Set-Cookie': cookie(await newSession(db, user.id))
       });
     }
