@@ -9,6 +9,7 @@ function setup() {
   sqlite.exec('CREATE TABLE orders(id TEXT PRIMARY KEY,data TEXT NOT NULL,revision INTEGER NOT NULL,updated_at TEXT NOT NULL)');
   sqlite.exec(readFileSync('migrations/0001_customer_accounts.sql', 'utf8'));
   sqlite.exec(readFileSync('migrations/0002_email_verification.sql', 'utf8'));
+  sqlite.exec(readFileSync('migrations/0003_customer_roles.sql', 'utf8'));
 
   function prepare(sql) {
     let args = [];
