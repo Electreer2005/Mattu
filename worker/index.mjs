@@ -495,8 +495,12 @@ export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (!path.startsWith('/api/customer/')) return env.ASSETS.fetch(request);
-    try { return await api(request, env); }
-    catch { return json({ error: 'No se pudo completar la operación. Intentá más tarde.' }, 500); }
+    try {
+      if (path.startsWith('/api/customer/media/')) return await mediaApi(request, env, path);
+      return await api(request, env);
+    } catch {
+      return json({ error: 'No se pudo completar la operación. Intentá más tarde.' }, 500);
+    }
   },
   async scheduled(event, env) {
     const timestamp = now();
