@@ -212,11 +212,6 @@ async function api(request, env) {
     return json({ users: result.results.map((user) => ({ ...user, role: emailOf(user.email) === OWNER_EMAIL ? 'admin' : (user.role || 'customer'), is_owner: emailOf(user.email) === OWNER_EMAIL })), isOwner: admin.is_owner });
   }
 
-  let b = {};
-  if (method === 'POST') {
-    try { b = await bodyOf(request); }
-    catch { return json({ error: 'Datos inválidos o demasiado grandes.' }, 400); }
-  }
 
   if (path === '/api/customer/admin/role' && method === 'POST') {
     const actor = await userFor(request, db);
