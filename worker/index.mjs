@@ -58,6 +58,73 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }
 
+
+async function mediaApi(request, env, path) {
+  const origin = request.headers.get('Origin');
+  const trustedOrigins = new Set([
+    new URL(request.url).origin,
+    'https://mattu-chi.vercel.app',
+    'https://mattu-app.vercel.app',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+  ]);
+  if (request.method !== 'GET' && !trustedOrigins.has(origin)) {
+    return json({ error: 'Solicitud de otro origen rechazada.' }, 403);
+  }
+  const key = decodeURIComponent(path.slice('/api/customer/media/'.length));
+  if (!env.MEDIA_BUCKET) return json({ error: 'El almacenamiento de imágenes todavía no está configurado.' }, 503);
+
+  if (request.method === 'GET' && key && key !== 'media') {
+    const object = await env.MEDIA_BUCKET.get(key);
+    if (!object) return json({ error: 'Imagen no encontrada.' }, 404);
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    headers.set('X-Content-Type-Options', 'nosniff');
+    return new Response(object.body, { headers });
+  }
+
+  if (request.method !== 'POST' || key !== 'upload') {
+    return json({ error: 'Ruta no encontrada.' }, 404);
+  }
+
+  const db = env.DB;
+  const admin = await userFor(request, db);
+  if (!admin) return json({ error: 'Iniciá sesión.' }, 401);
+  if (admin.role !== 'admin') return json({ error: 'No tenés permisos de administrador.' }, 403);
+
+  const length = Number(request.headers.get('Content-Length') || 0);
+  if (length > 5 * 1024 * 1024) return json({ error: 'La imagen supera el límite de 5 MB.' }, 413);
+
+  let form;
+  try { form = await request.formData(); }
+  catch { return json({ error: 'Formulario de imagen inválido.' }, 400); }
+
+  const file = form.get('file');
+  if (!(file instanceof File) || !file.size || file.size > 5 * 1024 * 1024) {
+    return json({ error: 'Seleccioná una imagen de hasta 5 MB.' }, 400);
+  }
+  const allowed = new Map([
+    ['image/jpeg', 'jpg'],
+    ['image/png', 'png'],
+    ['image/webp', 'webp'],
+    ['image/avif', 'avif']
+  ]);
+  const extension = allowed.get(file.type);
+  if (!extension) return json({ error: 'Formato no permitido. Usá JPG, PNG, WEBP o AVIF.' }, 415);
+
+  const keyName = 'catalog/' + crypto.randomUUID() + '.' + extension;
+  await env.MEDIA_BUCKET.put(keyName, file.stream(), {
+    httpMetadata: {
+      contentType: file.type,
+      cacheControl: 'public, max-age=31536000, immutable'
+    },
+    customMetadata: { uploadedBy: admin.id }
+  });
+  const url = new URL('/api/customer/media/' + encodeURIComponent(keyName), request.url).toString();
+  return json({ key: keyName, url, contentType: file.type, size: file.size }, 201);
+}
+
 async function api(request, env) {
   const path = new URL(request.url).pathname;
   const method = request.method;
