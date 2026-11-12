@@ -146,6 +146,51 @@ async function api(request, env) {
     return json({ user: await userFor(request, db) });
   }
 
+
+  const catalogMatch = path.match(/^\/api\/customer\/catalog\/(products|services)(?:\/([^/]+))?$/);
+  if (catalogMatch) {
+    const kind = catalogMatch[1];
+    const itemId = catalogMatch[2] ? decodeURIComponent(catalogMatch[2]) : '';
+    const table = kind === 'products' ? 'catalog_products' : 'catalog_services';
+    if (method === 'GET') {
+      const rows = await db.prepare(`SELECT id,data,updated_at FROM ${table} WHERE active=1 ORDER BY updated_at DESC`).all();
+      return json({ [kind]: rows.results.map((row) => ({ ...JSON.parse(row.data), id: row.id, updatedAt: row.updated_at })) });
+    }
+
+    const admin = await userFor(request, db);
+    if (!admin) return json({ error: 'Iniciá sesión.' }, 401);
+    if (admin.role !== 'admin') return json({ error: 'No tenés permisos de administrador.' }, 403);
+
+    if (method === 'POST') {
+      const id = str(b.id, 100) || crypto.randomUUID();
+      const data = { ...b, id };
+      delete data.updatedAt;
+      const stamp = new Date().toISOString();
+      await db.prepare(`INSERT INTO ${table}(id,data,active,created_at,updated_at) VALUES(?,?,1,?,?)`)
+        .bind(id, JSON.stringify(data), stamp, stamp).run();
+      return json({ item: { ...data, updatedAt: stamp } }, 201);
+    }
+
+    if (method === 'PUT' && itemId) {
+      const current = await db.prepare(`SELECT id,data FROM ${table} WHERE id=?`).bind(itemId).first();
+      if (!current) return json({ error: 'No se encontró el elemento.' }, 404);
+      const data = { ...JSON.parse(current.data), ...b, id: itemId };
+      delete data.updatedAt;
+      const stamp = new Date().toISOString();
+      await db.prepare(`UPDATE ${table} SET data=?,updated_at=? WHERE id=?`)
+        .bind(JSON.stringify(data), stamp, itemId).run();
+      return json({ item: { ...data, updatedAt: stamp } });
+    }
+
+    if (method === 'DELETE' && itemId) {
+      const result = await db.prepare(`UPDATE ${table} SET active=0,updated_at=? WHERE id=? AND active=1`)
+        .bind(new Date().toISOString(), itemId).run();
+      if (!result.meta.changes) return json({ error: 'No se encontró el elemento.' }, 404);
+      return json({ ok: true });
+    }
+    return json({ error: 'Método no permitido.' }, 405);
+  }
+
   if (path === '/api/customer/admin/users' && method === 'GET') {
     const admin = await userFor(request, db);
     if (!admin) return json({ error: 'Iniciá sesión.' }, 401);
