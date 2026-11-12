@@ -4,7 +4,12 @@ CREATE TABLE IF NOT EXISTS customer_users (
   name TEXT NOT NULL,
   password_hash TEXT NOT NULL,
   salt TEXT NOT NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  verified_at INTEGER,
+  phone TEXT NOT NULL DEFAULT '',
+  address TEXT NOT NULL DEFAULT '',
+  bio TEXT NOT NULL DEFAULT '',
+  avatar TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS customer_sessions (
   token_hash TEXT PRIMARY KEY NOT NULL,
