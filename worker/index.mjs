@@ -147,6 +147,12 @@ async function api(request, env) {
   }
 
 
+  let b = {};
+  if (method === 'POST' || method === 'PUT') {
+    try { b = await bodyOf(request); }
+    catch { return json({ error: 'Datos inválidos o demasiado grandes.' }, 400); }
+  }
+
   const catalogMatch = path.match(/^\/api\/customer\/catalog\/(products|services)(?:\/([^/]+))?$/);
   if (catalogMatch) {
     const kind = catalogMatch[1];
@@ -154,7 +160,11 @@ async function api(request, env) {
     const table = kind === 'products' ? 'catalog_products' : 'catalog_services';
     if (method === 'GET') {
       const rows = await db.prepare(`SELECT id,data,updated_at FROM ${table} WHERE active=1 ORDER BY updated_at DESC`).all();
-      return json({ [kind]: rows.results.map((row) => ({ ...JSON.parse(row.data), id: row.id, updatedAt: row.updated_at })) });
+      const deleted = await db.prepare(`SELECT id FROM ${table} WHERE active=0`).all();
+      return json({
+        [kind]: rows.results.map((row) => ({ ...JSON.parse(row.data), id: row.id, updatedAt: row.updated_at })),
+        deletedIds: deleted.results.map((row) => row.id)
+      });
     }
 
     const admin = await userFor(request, db);
@@ -173,19 +183,22 @@ async function api(request, env) {
 
     if (method === 'PUT' && itemId) {
       const current = await db.prepare(`SELECT id,data FROM ${table} WHERE id=?`).bind(itemId).first();
-      if (!current) return json({ error: 'No se encontró el elemento.' }, 404);
-      const data = { ...JSON.parse(current.data), ...b, id: itemId };
+      const data = { ...(current ? JSON.parse(current.data) : {}), ...b, id: itemId };
       delete data.updatedAt;
       const stamp = new Date().toISOString();
-      await db.prepare(`UPDATE ${table} SET data=?,updated_at=? WHERE id=?`)
-        .bind(JSON.stringify(data), stamp, itemId).run();
+      await db.prepare(`INSERT INTO ${table}(id,data,active,created_at,updated_at) VALUES(?,?,1,?,?)
+        ON CONFLICT(id) DO UPDATE SET data=excluded.data,active=1,updated_at=excluded.updated_at`)
+        .bind(itemId, JSON.stringify(data), stamp, stamp).run();
       return json({ item: { ...data, updatedAt: stamp } });
     }
 
     if (method === 'DELETE' && itemId) {
-      const result = await db.prepare(`UPDATE ${table} SET active=0,updated_at=? WHERE id=? AND active=1`)
-        .bind(new Date().toISOString(), itemId).run();
-      if (!result.meta.changes) return json({ error: 'No se encontró el elemento.' }, 404);
+      const current = await db.prepare(`SELECT id,data FROM ${table} WHERE id=?`).bind(itemId).first();
+      const stamp = new Date().toISOString();
+      const data = current ? current.data : JSON.stringify({ id: itemId });
+      await db.prepare(`INSERT INTO ${table}(id,data,active,created_at,updated_at) VALUES(?,?,0,?,?)
+        ON CONFLICT(id) DO UPDATE SET active=0,updated_at=excluded.updated_at`)
+        .bind(itemId, data, stamp, stamp).run();
       return json({ ok: true });
     }
     return json({ error: 'Método no permitido.' }, 405);
@@ -199,11 +212,6 @@ async function api(request, env) {
     return json({ users: result.results.map((user) => ({ ...user, role: emailOf(user.email) === OWNER_EMAIL ? 'admin' : (user.role || 'customer'), is_owner: emailOf(user.email) === OWNER_EMAIL })), isOwner: admin.is_owner });
   }
 
-  let b = {};
-  if (method === 'POST') {
-    try { b = await bodyOf(request); }
-    catch { return json({ error: 'Datos inválidos o demasiado grandes.' }, 400); }
-  }
 
   if (path === '/api/customer/admin/role' && method === 'POST') {
     const actor = await userFor(request, db);
