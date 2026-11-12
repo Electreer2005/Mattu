@@ -60,6 +60,17 @@ function escapeHtml(value) {
 
 
 async function mediaApi(request, env, path) {
+  const origin = request.headers.get('Origin');
+  const trustedOrigins = new Set([
+    new URL(request.url).origin,
+    'https://mattu-chi.vercel.app',
+    'https://mattu-app.vercel.app',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+  ]);
+  if (request.method !== 'GET' && !trustedOrigins.has(origin)) {
+    return json({ error: 'Solicitud de otro origen rechazada.' }, 403);
+  }
   const key = decodeURIComponent(path.slice('/api/customer/media/'.length));
   if (!env.MEDIA_BUCKET) return json({ error: 'El almacenamiento de imágenes todavía no está configurado.' }, 503);
 
