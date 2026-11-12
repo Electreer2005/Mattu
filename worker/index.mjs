@@ -60,7 +60,7 @@ function escapeHtml(value) {
 
 
 async function mediaApi(request, env, path) {
-  const key = decodeURIComponent(path.split('/').pop() || '');
+  const key = decodeURIComponent(path.slice('/api/customer/media/'.length));
   if (!env.MEDIA_BUCKET) return json({ error: 'El almacenamiento de imágenes todavía no está configurado.' }, 503);
 
   if (request.method === 'GET' && key && key !== 'media') {
