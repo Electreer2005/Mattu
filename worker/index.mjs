@@ -66,6 +66,7 @@ async function mediaApi(request, env, path) {
     'https://mattu-chi.vercel.app',
     'https://mattu-app.vercel.app',
     'https://prueba.mattulife.com.ar',
+    'https://www.mattulife.com.ar',
     'http://localhost:5173',
     'http://127.0.0.1:5173'
   ]);
@@ -137,6 +138,7 @@ async function api(request, env) {
     'https://mattu-chi.vercel.app',
     'https://mattu-app.vercel.app',
     'https://prueba.mattulife.com.ar',
+    'https://www.mattulife.com.ar',
     'http://localhost:5173',
     'http://127.0.0.1:5173'
   ]);
