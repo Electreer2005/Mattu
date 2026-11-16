@@ -251,7 +251,7 @@ async function api(request, env) {
     if (!name || !phone || !message) {
       return json({ error: 'Completá nombre, teléfono y mensaje.' }, 400);
     }
-    if (!/^[\\d\\s+().-]{6,40}$/.test(phone)) {
+    if (!/^[\d\s+().-]{6,40}$/.test(phone)) {
       return json({ error: 'Ingresá un teléfono válido.' }, 400);
     }
     if (email && !validEmail(email)) {
@@ -264,9 +264,9 @@ async function api(request, env) {
       VALUES(?,?,?,?,?,'new',?,?)`).bind(id, name, phone, email, message, stamp, stamp).run();
 
     const subject = 'Nueva consulta desde Mattu · ' + name;
-    const text = 'Nueva consulta recibida desde el sitio Mattu.\\n\\nNombre: ' + name +
-      '\\nTeléfono: ' + phone + '\\nCorreo: ' + (email || 'No informado') +
-      '\\n\\nMensaje:\\n' + message + '\\n\\nID: ' + id;
+    const text = 'Nueva consulta recibida desde el sitio Mattu.\n\nNombre: ' + name +
+      '\nTeléfono: ' + phone + '\nCorreo: ' + (email || 'No informado') +
+      '\n\nMensaje:\n' + message + '\n\nID: ' + id;
     const html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#29231f">' +
       '<h1 style="color:#72533d">Nueva consulta desde Mattu</h1>' +
       '<p><strong>Nombre:</strong> ' + escapeHtml(name) + '</p>' +
