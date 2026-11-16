@@ -152,7 +152,7 @@ async function api(request, env) {
 
 
   let b = {};
-  if (method === 'POST' || method === 'PUT') {
+  if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
     try { b = await bodyOf(request); }
     catch { return json({ error: 'Datos inválidos o demasiado grandes.' }, 400); }
   }
