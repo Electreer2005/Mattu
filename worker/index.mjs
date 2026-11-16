@@ -152,7 +152,7 @@ async function api(request, env) {
 
 
   let b = {};
-  if (method === 'POST' || method === 'PUT') {
+  if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
     try { b = await bodyOf(request); }
     catch { return json({ error: 'Datos inválidos o demasiado grandes.' }, 400); }
   }
@@ -236,6 +236,76 @@ async function api(request, env) {
   }
 
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+
+  if (path === '/api/customer/contact' && method === 'POST') {
+    if (!await rate(db, 'contact-ip:' + await sha256(ip), 5, 3600)) {
+      return json({ error: 'Recibimos varias consultas desde esta conexión. Probá nuevamente más tarde.' }, 429);
+    }
+    // Honeypot: bots que completan este campo reciben una respuesta neutra.
+    if (str(b.website, 160)) return json({ ok: true, message: 'Consulta recibida.' }, 201);
+
+    const name = str(b.name, 120);
+    const phone = str(b.phone, 40);
+    const email = emailOf(b.email);
+    const message = str(b.message, 2000);
+    if (!name || !phone || !message) {
+      return json({ error: 'Completá nombre, teléfono y mensaje.' }, 400);
+    }
+    if (!/^[\d\s+().-]{6,40}$/.test(phone)) {
+      return json({ error: 'Ingresá un teléfono válido.' }, 400);
+    }
+    if (email && !validEmail(email)) {
+      return json({ error: 'El correo electrónico no es válido.' }, 400);
+    }
+
+    const id = crypto.randomUUID();
+    const stamp = new Date().toISOString();
+    await db.prepare(`INSERT INTO contact_messages(id,name,phone,email,message,status,created_at,updated_at)
+      VALUES(?,?,?,?,?,'new',?,?)`).bind(id, name, phone, email, message, stamp, stamp).run();
+
+    const subject = 'Nueva consulta desde Mattu · ' + name;
+    const text = 'Nueva consulta recibida desde el sitio Mattu.\n\nNombre: ' + name +
+      '\nTeléfono: ' + phone + '\nCorreo: ' + (email || 'No informado') +
+      '\n\nMensaje:\n' + message + '\n\nID: ' + id;
+    const html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#29231f">' +
+      '<h1 style="color:#72533d">Nueva consulta desde Mattu</h1>' +
+      '<p><strong>Nombre:</strong> ' + escapeHtml(name) + '</p>' +
+      '<p><strong>Teléfono:</strong> ' + escapeHtml(phone) + '</p>' +
+      '<p><strong>Correo:</strong> ' + escapeHtml(email || 'No informado') + '</p>' +
+      '<p><strong>Mensaje:</strong></p><p style="white-space:pre-wrap">' + escapeHtml(message) + '</p>' +
+      '<small>Consulta ' + id + '</small></div>';
+    const notificationSent = await sendEmail(env, {
+      to: env.CONTACT_TO || OWNER_EMAIL,
+      subject, text, html
+    });
+    return json({
+      ok: true,
+      id,
+      message: 'Tu consulta quedó registrada. El equipo de Mattu se pondrá en contacto.',
+      notificationSent
+    }, 201);
+  }
+
+  if (path === '/api/customer/admin/contacts' && (method === 'GET' || method === 'PATCH')) {
+    const admin = await userFor(request, db);
+    if (!admin) return json({ error: 'Iniciá sesión.' }, 401);
+    if (admin.role !== 'admin') return json({ error: 'No tenés permisos de administrador.' }, 403);
+
+    if (method === 'GET') {
+      const result = await db.prepare('SELECT id,name,phone,email,message,status,created_at,updated_at FROM contact_messages ORDER BY created_at DESC LIMIT 200').all();
+      return json({ contacts: result.results });
+    }
+
+    const id = str(b.id, 80);
+    const status = str(b.status, 20);
+    if (!id || !['new', 'in_progress', 'resolved'].includes(status)) {
+      return json({ error: 'Consulta o estado inválido.' }, 400);
+    }
+    const result = await db.prepare('UPDATE contact_messages SET status=?,updated_at=? WHERE id=?')
+      .bind(status, new Date().toISOString(), id).run();
+    if (!result.meta.changes) return json({ error: 'No se encontró la consulta.' }, 404);
+    return json({ ok: true });
+  }
 
   if (path.startsWith('/api/customer/auth/') && method === 'POST') {
     if (!await rate(db, 'auth-ip:' + ip, 15, 60)) {
