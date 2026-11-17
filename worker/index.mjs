@@ -642,16 +642,38 @@ async function api(request, env) {
 
       const items = [];
       for (const item of b.items) {
-        const label = names[item.serviceId] || str(item.productName || item.name, 120);
-        const piece = str(item.piece || item.productName || item.name, 80);
+        const serviceLabel = names[item.serviceId];
+        const productId = str(item.productId, 100);
+        const piece = str(item.piece || item.productName || item.name, 120);
         const design = str(item.design || item.customization || item.description, 1500);
-        if (!label || !Number.isInteger(item.qty) || item.qty < 1 || item.qty > 9999 || !design || !piece) {
+        if (!Number.isInteger(item.qty) || item.qty < 1 || item.qty > 9999 || !design || !piece) {
           return json({ error: 'Una de las piezas tiene datos inválidos.' }, 400);
         }
+
+        let price = 0;
+        let productName = '';
+        if (productId) {
+          const productRow = await db.prepare('SELECT data FROM catalog_products WHERE id=? AND active=1').bind(productId).first();
+          if (!productRow) return json({ error: 'Uno de los productos ya no está disponible. Actualizá el catálogo e intentá nuevamente.' }, 409);
+          const product = JSON.parse(productRow.data);
+          price = Number(product.price);
+          productName = str(product.name || product.title, 120);
+          if (!Number.isFinite(price) || price <= 0 || !productName) {
+            return json({ error: 'El producto ' + (productName || 'seleccionado') + ' no tiene un precio válido cargado. Contactá al equipo.' }, 409);
+          }
+        } else if (!serviceLabel) {
+          return json({ error: 'No pudimos identificar uno de los productos o servicios de la solicitud.' }, 400);
+        }
+
+        const label = serviceLabel || productName;
+        const description = productId
+          ? productName + (design !== piece ? ' · ' + design : '')
+          : label + ' · ' + piece + ' · ' + (str(item.material, 80) || 'Material a confirmar') + '\n' + design;
         items.push({
-          description: label + ' · ' + piece + ' · ' + (str(item.material, 80) || 'Material a confirmar') + '\n' + design,
+          ...(productId ? { productId } : {}),
+          description,
           qty: item.qty,
-          price: 0
+          price
         });
       }
 
@@ -664,7 +686,16 @@ async function api(request, env) {
         id, number: 'MT-' + id.slice(0, 8).toUpperCase(), customer: user.name, customerId: user.id,
         email: user.email, phone: str(b.phone, 40), address: '', cuit: '', type: 'Por encargo',
         due: '', delivery: 'A confirmar',
-        notes: 'SOLICITUD WEB PENDIENTE DE REVISIÓN. Precios a cotizar.\n' + str(b.notes, 2000),
+        notes: (() => {
+          const hasService = b.items.some((item) => Boolean(names[item.serviceId]));
+          const hasProduct = items.some((item) => Boolean(item.productId));
+          const note = hasService && hasProduct
+            ? 'SOLICITUD WEB MIXTA. Productos con precio de catálogo; servicios personalizados a cotizar.'
+            : hasProduct
+              ? 'COMPRA WEB. Precios tomados del catálogo; pendiente de confirmar disponibilidad y entrega.'
+              : 'SOLICITUD WEB PENDIENTE DE REVISIÓN. Precios a cotizar.';
+          return note + '\\n' + str(b.notes, 2000);
+        })(),
         items, deposit: 0, status: 'Recibido', createdAt: stamp, updatedAt: stamp,
         updatedBy: 'Cliente',
         history: [{ date: stamp, text: 'Solicitud de cliente pendiente de revisión', actor: 'Cliente' }],
