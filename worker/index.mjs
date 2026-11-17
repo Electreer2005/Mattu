@@ -208,6 +208,90 @@ async function api(request, env) {
     return json({ error: 'Método no permitido.' }, 405);
   }
 
+
+  if (path.startsWith('/api/customer/admin/inventory')) {
+    const admin = await userFor(request, db);
+    if (!admin) return json({ error: 'Iniciá sesión.' }, 401);
+    if (admin.role !== 'admin') return json({ error: 'No tenés permisos de administrador.' }, 403);
+    const stamp = new Date().toISOString();
+    const routePart = path.slice('/api/customer/admin/inventory'.length);
+    const route = (routePart.endsWith('/') ? routePart.slice(0, -1) : routePart) || '/';
+    if (method === 'GET' && route === '/') {
+      const [materials, products, movements] = await Promise.all([
+        db.prepare('SELECT * FROM inventory_materials ORDER BY active DESC, name COLLATE NOCASE').all(),
+        db.prepare(`SELECT p.id,p.data,COALESCE(s.on_hand,0) AS on_hand,COALESCE(s.reserved,0) AS reserved FROM catalog_products p LEFT JOIN inventory_finished_stock s ON s.product_id=p.id WHERE p.active=1 ORDER BY p.updated_at DESC`).all(),
+        db.prepare('SELECT * FROM inventory_movements ORDER BY created_at DESC LIMIT 100').all()
+      ]);
+      return json({ materials: materials.results, products: products.results.map(row => ({ ...JSON.parse(row.data), id: row.id, onHand: row.on_hand, reserved: row.reserved, available: row.on_hand-row.reserved })), movements: movements.results });
+    }
+    if (method === 'POST' && route === '/materials') {
+      const name=str(b.name,120), category=str(b.category,40)||'otros', unit=str(b.unit,20)||'unidad';
+      const quantity=Number(b.stockQuantity??0), minimum=Number(b.minimumQuantity??0);
+      if(!name||!Number.isFinite(quantity)||quantity<0||!Number.isFinite(minimum)||minimum<0||!['madera','cuero','metales','virola','insumos','otros'].includes(category)||!['unidad','g','kg','ml','l','cm','m','mm','par','hoja'].includes(unit)) return json({error:'Revisá nombre, categoría, unidad y cantidades.'},400);
+      const id=crypto.randomUUID();
+      await db.batch([
+        db.prepare(`INSERT INTO inventory_materials(id,name,category,unit,stock_quantity,minimum_quantity,notes,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,1,?,?)`).bind(id,name,category,unit,quantity,minimum,str(b.notes,1000),stamp,stamp),
+        ...(quantity>0?[db.prepare(`INSERT INTO inventory_movements(id,entity_type,entity_id,movement_type,quantity,reference_type,note,created_by,created_at) VALUES(?,'material',?,'initial',?,'manual',?,?,?)`).bind(crypto.randomUUID(),id,quantity,'Stock inicial',admin.email,stamp)]:[])
+      ]);
+      return json({id},201);
+    }
+    const materialMatch = route.startsWith('/materials/') ? [route, route.slice('/materials/'.length)] : null;
+    if(materialMatch&&method==='PATCH'){
+      const id=decodeURIComponent(materialMatch[1]), current=await db.prepare('SELECT * FROM inventory_materials WHERE id=?').bind(id).first();
+      if(!current)return json({error:'No se encontró el material.'},404);
+      const name=b.name===undefined?current.name:str(b.name,120), category=b.category===undefined?current.category:str(b.category,40), unit=b.unit===undefined?current.unit:str(b.unit,20), minimum=b.minimumQuantity===undefined?current.minimum_quantity:Number(b.minimumQuantity);
+      if(!name||!['madera','cuero','metales','virola','insumos','otros'].includes(category)||!['unidad','g','kg','ml','l','cm','m','mm','par','hoja'].includes(unit)||!Number.isFinite(minimum)||minimum<0)return json({error:'Datos del material inválidos.'},400);
+      await db.prepare('UPDATE inventory_materials SET name=?,category=?,unit=?,minimum_quantity=?,notes=?,active=?,updated_at=? WHERE id=?').bind(name,category,unit,minimum,b.notes===undefined?current.notes:str(b.notes,1000),b.active===false?0:1,stamp,id).run();
+      return json({ok:true});
+    }
+    if(method==='POST'&&route==='/movements'){
+      const entityType=str(b.entityType,30),entityId=str(b.entityId,100),movementType=str(b.movementType,30),quantity=Number(b.quantity),note=str(b.note,500);
+      if(!entityId||!['material','finished_product'].includes(entityType)||!['entry','consumption','adjustment','production','dispatch'].includes(movementType)||!Number.isFinite(quantity)||quantity<=0||quantity>10000000)return json({error:'Movimiento inválido.'},400);
+      const id=crypto.randomUUID();
+      if(entityType==='material'){
+        const row=await db.prepare('SELECT stock_quantity FROM inventory_materials WHERE id=? AND active=1').bind(entityId).first();
+        if(!row)return json({error:'No se encontró el material.'},404);
+        const next=movementType==='entry'?row.stock_quantity+quantity:movementType==='adjustment'?quantity:row.stock_quantity-quantity;
+        if(next<0)return json({error:'No hay suficiente stock para realizar ese movimiento.'},409);
+        await db.batch([
+          db.prepare('UPDATE inventory_materials SET stock_quantity=?,updated_at=? WHERE id=?').bind(next,stamp,entityId),
+          db.prepare(`INSERT INTO inventory_movements(id,entity_type,entity_id,movement_type,quantity,reference_type,note,created_by,created_at) VALUES(?,'material',?,?,?,?,?,?,?)`).bind(id,movementType,entityId,quantity,'manual',note,admin.email,stamp)
+        ]);
+      }else{
+        if(!await db.prepare('SELECT id FROM catalog_products WHERE id=? AND active=1').bind(entityId).first())return json({error:'No se encontró el producto.'},404);
+        const row=await db.prepare('SELECT on_hand,reserved FROM inventory_finished_stock WHERE product_id=?').bind(entityId).first();
+        const onHand=row?.on_hand||0,reserved=row?.reserved||0,next=['entry','production'].includes(movementType)?onHand+quantity:movementType==='adjustment'?quantity:onHand-quantity;
+        if(next<reserved)return json({error:'El ajuste dejaría menos unidades que las ya reservadas.'},409);
+        if(next<0)return json({error:'No hay suficiente stock disponible.'},409);
+        await db.batch([
+          db.prepare(`INSERT INTO inventory_finished_stock(product_id,on_hand,reserved,updated_at) VALUES(?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET on_hand=excluded.on_hand,updated_at=excluded.updated_at`).bind(entityId,next,reserved,stamp),
+          db.prepare(`INSERT INTO inventory_movements(id,entity_type,entity_id,movement_type,quantity,reference_type,note,created_by,created_at) VALUES(?,'finished_product',?,?,?,?,?,?,?)`).bind(id,entityId,movementType,quantity,'manual',note,admin.email,stamp)
+        ]);
+      }
+      return json({ok:true,movementId:id},201);
+    }
+    if(method==='POST'&&route==='/recipes'){
+      const productId=str(b.productId,100),outputQuantity=Number(b.outputQuantity||1),items=Array.isArray(b.items)?b.items:[];
+      if(!productId||!Number.isFinite(outputQuantity)||outputQuantity<=0||!items.length||items.length>50)return json({error:'La receta necesita producto, rendimiento y al menos un material.'},400);
+      if(!await db.prepare('SELECT id FROM catalog_products WHERE id=? AND active=1').bind(productId).first())return json({error:'Producto no encontrado.'},404);
+      const normalized=[];
+      for(const item of items){const materialId=str(item.materialId,100),quantity=Number(item.quantity);if(!materialId||!Number.isFinite(quantity)||quantity<=0||!await db.prepare('SELECT id FROM inventory_materials WHERE id=? AND active=1').bind(materialId).first())return json({error:'Hay materiales o cantidades inválidas en la receta.'},400);normalized.push({materialId,quantity});}
+      const existing=await db.prepare('SELECT id FROM inventory_recipes WHERE product_id=?').bind(productId).first(),recipeId=existing?.id||crypto.randomUUID();
+      await db.batch([
+        db.prepare(`INSERT INTO inventory_recipes(id,product_id,output_quantity,notes,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET output_quantity=excluded.output_quantity,notes=excluded.notes,updated_at=excluded.updated_at`).bind(recipeId,productId,outputQuantity,str(b.notes,1000),stamp,stamp),
+        db.prepare('DELETE FROM inventory_recipe_items WHERE recipe_id=?').bind(recipeId)
+      ]);
+      await db.batch(normalized.map(item=>db.prepare('INSERT INTO inventory_recipe_items(id,recipe_id,material_id,quantity) VALUES(?,?,?,?)').bind(crypto.randomUUID(),recipeId,item.materialId,item.quantity)));
+      return json({ok:true,recipeId},201);
+    }
+    if(method==='GET'&&route==='/recipes'){
+      const rows=await db.prepare(`SELECT r.id,r.product_id,r.output_quantity,r.notes,p.data FROM inventory_recipes r JOIN catalog_products p ON p.id=r.product_id ORDER BY p.updated_at DESC`).all(),recipes=[];
+      for(const row of rows.results){const items=await db.prepare(`SELECT i.material_id,i.quantity,m.name,m.unit FROM inventory_recipe_items i JOIN inventory_materials m ON m.id=i.material_id WHERE i.recipe_id=?`).bind(row.id).all();recipes.push({id:row.id,productId:row.product_id,product:JSON.parse(row.data),outputQuantity:row.output_quantity,notes:row.notes,items:items.results});}
+      return json({recipes});
+    }
+    return json({error:'Ruta de inventario no encontrada.'},404);
+  }
+
   if (path === '/api/customer/admin/users' && method === 'GET') {
     const admin = await userFor(request, db);
     if (!admin) return json({ error: 'Iniciá sesión.' }, 401);
