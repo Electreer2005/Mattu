@@ -214,7 +214,8 @@ async function api(request, env) {
     if (!admin) return json({ error: 'Iniciá sesión.' }, 401);
     if (admin.role !== 'admin') return json({ error: 'No tenés permisos de administrador.' }, 403);
     const stamp = new Date().toISOString();
-    const route = path.slice('/api/customer/admin/inventory'.length).replace(/\\/$/, '') || '/';
+    const routePart = path.slice('/api/customer/admin/inventory'.length);
+    const route = (routePart.endsWith('/') ? routePart.slice(0, -1) : routePart) || '/';
     if (method === 'GET' && route === '/') {
       const [materials, products, movements] = await Promise.all([
         db.prepare('SELECT * FROM inventory_materials ORDER BY active DESC, name COLLATE NOCASE').all(),
@@ -234,7 +235,7 @@ async function api(request, env) {
       ]);
       return json({id},201);
     }
-    const materialMatch=route.match(/^\\/materials\\/([^/]+)$/);
+    const materialMatch = route.startsWith('/materials/') ? [route, route.slice('/materials/'.length)] : null;
     if(materialMatch&&method==='PATCH'){
       const id=decodeURIComponent(materialMatch[1]), current=await db.prepare('SELECT * FROM inventory_materials WHERE id=?').bind(id).first();
       if(!current)return json({error:'No se encontró el material.'},404);
