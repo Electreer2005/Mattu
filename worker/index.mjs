@@ -276,12 +276,16 @@ async function api(request, env) {
       if(!await db.prepare('SELECT id FROM catalog_products WHERE id=? AND active=1').bind(productId).first())return json({error:'Producto no encontrado.'},404);
       const normalized=[];
       for(const item of items){const materialId=str(item.materialId,100),quantity=Number(item.quantity);if(!materialId||!Number.isFinite(quantity)||quantity<=0||!await db.prepare('SELECT id FROM inventory_materials WHERE id=? AND active=1').bind(materialId).first())return json({error:'Hay materiales o cantidades inválidas en la receta.'},400);normalized.push({materialId,quantity});}
+      const combined=new Map();
+      for(const item of normalized)combined.set(item.materialId,(combined.get(item.materialId)||0)+item.quantity);
+      const finalItems=[...combined.entries()].map(([materialId,quantity])=>({materialId,quantity}));
       const existing=await db.prepare('SELECT id FROM inventory_recipes WHERE product_id=?').bind(productId).first(),recipeId=existing?.id||crypto.randomUUID();
-      await db.batch([
+      const statements=[
         db.prepare(`INSERT INTO inventory_recipes(id,product_id,output_quantity,notes,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET output_quantity=excluded.output_quantity,notes=excluded.notes,updated_at=excluded.updated_at`).bind(recipeId,productId,outputQuantity,str(b.notes,1000),stamp,stamp),
-        db.prepare('DELETE FROM inventory_recipe_items WHERE recipe_id=?').bind(recipeId)
-      ]);
-      await db.batch(normalized.map(item=>db.prepare('INSERT INTO inventory_recipe_items(id,recipe_id,material_id,quantity) VALUES(?,?,?,?)').bind(crypto.randomUUID(),recipeId,item.materialId,item.quantity)));
+        db.prepare('DELETE FROM inventory_recipe_items WHERE recipe_id=?').bind(recipeId),
+        ...finalItems.map(item=>db.prepare('INSERT INTO inventory_recipe_items(id,recipe_id,material_id,quantity) VALUES(?,?,?,?)').bind(crypto.randomUUID(),recipeId,item.materialId,item.quantity))
+      ];
+      await db.batch(statements);
       return json({ok:true,recipeId},201);
     }
     if(method==='GET'&&route==='/recipes'){
