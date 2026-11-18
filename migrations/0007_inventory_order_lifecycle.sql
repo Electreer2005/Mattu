@@ -17,7 +17,7 @@ FROM inventory_order_lines_legacy;
 DROP TABLE inventory_order_lines_legacy;
 CREATE INDEX inventory_order_lines_status ON inventory_order_lines(status, order_id);
 
--- A guard row makes the optimistic order revision part of the same D1 batch as
+-- A unique write token makes the optimistic order update part of the same D1 batch as
 -- inventory movements. A stale concurrent update aborts and rolls back the batch.
 CREATE TABLE IF NOT EXISTS inventory_order_sync_guard (
   order_id TEXT PRIMARY KEY NOT NULL,
