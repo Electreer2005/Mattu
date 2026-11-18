@@ -21,17 +21,17 @@ CREATE INDEX inventory_order_lines_status ON inventory_order_lines(status, order
 -- inventory movements. A stale concurrent update aborts and rolls back the batch.
 CREATE TABLE IF NOT EXISTS inventory_order_sync_guard (
   order_id TEXT PRIMARY KEY NOT NULL,
-  revision INTEGER NOT NULL
+  token TEXT NOT NULL
 );
 CREATE TRIGGER IF NOT EXISTS inventory_order_sync_guard_insert
 BEFORE INSERT ON inventory_order_sync_guard
-WHEN NOT EXISTS (SELECT 1 FROM orders WHERE id=NEW.order_id AND revision=NEW.revision)
+WHEN NOT EXISTS (SELECT 1 FROM orders WHERE id=NEW.order_id AND json_extract(data, '$.inventorySyncToken')=NEW.token)
 BEGIN
   SELECT RAISE(ABORT, 'order-revision-conflict');
 END;
 CREATE TRIGGER IF NOT EXISTS inventory_order_sync_guard_update
 BEFORE UPDATE ON inventory_order_sync_guard
-WHEN NOT EXISTS (SELECT 1 FROM orders WHERE id=NEW.order_id AND revision=NEW.revision)
+WHEN NOT EXISTS (SELECT 1 FROM orders WHERE id=NEW.order_id AND json_extract(data, '$.inventorySyncToken')=NEW.token)
 BEGIN
   SELECT RAISE(ABORT, 'order-revision-conflict');
 END;
